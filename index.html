@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>숨은그림찾기: 미스터리 10단계 아일랜드</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #05070f;
+            color: #f8fafc;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 오답 시 화면 진동 애니메이션 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .shake-active {
+            animation: shake 0.3s ease-in-out;
+        }
+
+        /* 펄스 웨이브 효과 */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.6); opacity: 1; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+        .pulse-effect {
+            animation: pulse-ring 1.2s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
+        }
+
+        /* 부드러운 스크롤 바 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-2 sm:p-4 bg-slate-950">
+
+    <!-- 상단 헤더 및 실시간 지표 정보 -->
+    <header class="w-full max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center bg-slate-900/95 border border-slate-800 p-4 rounded-2xl gap-4 mb-3 shadow-2xl">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-yellow-400 to-amber-600 p-2.5 rounded-xl shadow-lg shadow-amber-500/10">
+                <i class="fa-solid fa-wand-magic-sparkles text-xl text-slate-950 animate-pulse"></i>
+            </div>
+            <div>
+                <h1 class="text-lg sm:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-400">
+                    미스터리 타임아웃 : 10 대륙
+                </h1>
+                <p class="text-[10px] sm:text-xs text-slate-400 font-medium">더 깊은 한밤중 안개까지 숨겨진 보물을 찾아 10단계를 정복하세요!</p>
+            </div>
+        </div>
+
+        <!-- 스탯 상태 패널 -->
+        <div class="flex items-center gap-2 sm:gap-4 flex-wrap justify-center">
+            <!-- 현재 스테이지 -->
+            <div class="bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-center min-w-[80px]">
+                <div class="text-[9px] text-amber-500 font-bold uppercase tracking-wider">STAGE</div>
+                <div id="stage-display" class="text-base sm:text-lg font-black text-amber-400">1 / 10</div>
+            </div>
+
+            <!-- 제한 시간 표시기 -->
+            <div class="bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-center min-w-[100px] relative overflow-hidden" id="timer-box">
+                <div class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">남은 시간</div>
+                <div id="timer-display" class="text-base sm:text-lg font-black text-emerald-400">60.0s</div>
+                <div class="absolute bottom-0 left-0 h-1 bg-emerald-500 transition-all duration-100" id="timer-bar" style="width: 100%;"></div>
+            </div>
+
+            <!-- 스코어 현황 -->
+            <div class="bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-center min-w-[80px]">
+                <div class="text-[9px] text-sky-400 font-bold uppercase tracking-wider">찾은 보물</div>
+                <div id="score-display" class="text-base sm:text-lg font-black text-sky-400">0 / 5</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 메인 탐색 섹션 -->
+    <main class="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-4 items-start mb-4 flex-grow">
+        
+        <!-- 왼쪽: 실시간 벡터 그래픽 캔버스 영역 (3/4 공간 확보) -->
+        <div class="lg:col-span-3 bg-slate-900 border border-slate-800 p-2 sm:p-3 rounded-2xl shadow-xl flex flex-col items-center justify-center relative">
+            <div id="game-canvas-container" class="relative w-full overflow-hidden rounded-xl bg-slate-950 border border-slate-800 cursor-crosshair transition-all duration-300">
+                
+                <!-- 게임 보드 전용 실시간 렌더링 캔버스 -->
+                <canvas id="game-canvas" class="w-full h-auto block" width="1000" height="600"></canvas>
+
+                <!-- 엑스(❌) 및 피드백 데코레이션 레이어 -->
+                <div id="feedback-layer" class="absolute inset-0 pointer-events-none z-30"></div>
+            </div>
+            
+            <div class="w-full flex justify-between items-center mt-3 px-1 text-slate-450 text-[11px] font-semibold">
+                <span><i class="fa-solid fa-circle-info mr-1 text-amber-500 animate-bounce"></i> 오클릭 시 <strong class="text-rose-400">-5초 패널티!</strong></span>
+                <span class="hidden sm:inline text-slate-500">실시간 벡터 렌더러 탑재 v1.8</span>
+            </div>
+        </div>
+
+        <!-- 오른쪽: 찾을 아이템 정보 및 조작 단추 -->
+        <div class="flex flex-col gap-4 w-full h-full">
+            
+            <!-- 보물 탐색 목록 카드 -->
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl flex-grow flex flex-col min-h-[320px]">
+                <h2 class="text-sm font-bold text-slate-300 uppercase tracking-widest border-b border-slate-800 pb-3 mb-3 flex items-center justify-between">
+                    <span>🔍 찾아야 할 물건</span>
+                    <span id="stage-title" class="text-xs text-amber-400 font-extrabold px-2 py-0.5 bg-amber-500/10 rounded">Stage 1</span>
+                </h2>
+
+                <!-- 아이템 리스트 동적 추가 컨테이너 -->
+                <div id="item-list" class="space-y-2.5 flex-grow overflow-y-auto max-h-[300px] lg:max-h-[380px] pr-1">
+                    <!-- JavaScript에서 동적으로 미니 캔버스를 포함하여 카드를 렌더링합니다. -->
+                </div>
+            </div>
+
+            <!-- 보조 게임 조작 패널 -->
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl flex flex-col gap-2">
+                <button id="hint-btn" class="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-lg">
+                    <i class="fa-solid fa-lightbulb animate-pulse"></i>
+                    <span>요정의 힌트 쓰기 (3회 가능)</span>
+                </button>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="restart-btn" class="py-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-350 text-xs font-bold rounded-lg transition-all">
+                        <i class="fa-solid fa-rotate-right mr-1"></i> 처음부터
+                    </button>
+                    <button id="mute-btn" class="py-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-350 text-xs font-bold rounded-lg transition-all">
+                        <i class="fa-solid fa-volume-high mr-1"></i> 사운드 켜짐
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 시작 대기 모달 -->
+    <div id="start-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md px-4">
+        <div class="bg-slate-900 border border-slate-800 max-w-md w-full rounded-3xl p-6 sm:p-8 text-center shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl"></div>
+
+            <div class="w-16 h-16 bg-gradient-to-tr from-yellow-400 to-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg">
+                <i class="fa-solid fa-trophy text-3xl text-slate-950 animate-bounce"></i>
+            </div>
+
+            <h2 class="text-2xl sm:text-3xl font-black mb-2 text-yellow-400 leading-tight">
+                미스터리 타임아웃 10단계
+            </h2>
+            <p class="text-slate-400 text-sm mb-6 leading-relaxed">
+                맑은 정원부터 세피아, 노을, 보랏빛 황혼, 겨울 서리, 그리고 손전등 시야가 극도로 좁아지는 최후의 10단계 마스터 단계까지 도전해 보세요!
+            </p>
+
+            <div class="bg-slate-950/85 border border-slate-800 p-4 rounded-xl text-left mb-6 space-y-2 text-xs text-slate-300">
+                <div class="flex items-center gap-2"><i class="fa-solid fa-layer-group text-yellow-400"></i> <span><strong>10단계 레벨 업 시스템</strong></span></div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-stopwatch text-rose-450"></i> <span><strong>제한 시간 압박</strong> (점점 단축되는 초읽기!)</span></div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-red-450"></i> <span><strong>오클릭 패널티</strong>: 실수 시 <strong>시간이 5초 감소</strong></span></div>
+            </div>
+
+            <button id="start-game-btn" class="w-full py-4 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-slate-950 font-black rounded-xl transition-all duration-300 shadow-lg text-lg hover:scale-[1.02] active:scale-[0.98]">
+                미스터리 모험 시작하기 <i class="fa-solid fa-circle-play ml-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 스테이지 클리어 안내 모달 -->
+    <div id="next-stage-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/90 backdrop-blur-md px-4">
+        <div class="bg-slate-900 border border-slate-800 max-w-md w-full rounded-3xl p-6 sm:p-8 text-center shadow-2xl">
+            <div class="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-5 text-emerald-400 shadow-inner">
+                <i class="fa-solid fa-star-and-crescent text-3xl animate-spin-slow"></i>
+            </div>
+
+            <h2 id="next-modal-title" class="text-2xl font-black mb-2 text-emerald-400">Stage Clear!</h2>
+            <p id="next-modal-desc" class="text-slate-400 text-sm mb-6">대단한 관찰력이십니다! 다음 수수께끼에 발을 들입니다.</p>
+
+            <div class="bg-slate-950/80 border border-slate-800 p-4 rounded-xl text-left mb-6">
+                <h4 class="text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-2">다음 구역 정보</h4>
+                <div id="next-stage-info" class="text-xs text-slate-300 space-y-2">
+                    <!-- 동적 스테이지 정보 로드 -->
+                </div>
+            </div>
+
+            <button id="next-stage-btn" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black rounded-xl transition-all duration-300 shadow-lg text-lg">
+                다음 구역으로 진입 <i class="fa-solid fa-forward-fast ml-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 패배 및 타임 아웃 모달 -->
+    <div id="fail-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/95 backdrop-blur-md px-4">
+        <div class="bg-slate-900 border border-slate-800 max-w-md w-full rounded-3xl p-6 sm:p-8 text-center shadow-2xl">
+            <div class="w-16 h-16 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center mx-auto mb-5 text-rose-500">
+                <i class="fa-solid fa-hourglass-empty text-3xl animate-bounce"></i>
+            </div>
+
+            <h2 class="text-2xl font-black mb-2 text-rose-500">타임오버! 스테이지 실패</h2>
+            <p class="text-slate-400 text-sm mb-6">시간이 모두 소모되었습니다. 정원의 요정들이 물건들을 다른 곳으로 숨기기 전에 어서 다시 시도하세요!</p>
+
+            <button id="retry-btn" class="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-extrabold rounded-xl transition-all duration-300 shadow-lg text-lg">
+                이 스테이지 다시 도전 <i class="fa-solid fa-rotate-right ml-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 최종 클리어 엔딩 팝업 -->
+    <div id="ending-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/95 backdrop-blur-md px-4">
+        <div class="bg-slate-900 border border-slate-800 max-w-lg w-full rounded-3xl p-6 sm:p-8 text-center shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-10 -left-10 w-40 h-40 bg-yellow-500/15 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl"></div>
+
+            <div class="w-20 h-20 bg-gradient-to-tr from-yellow-400 via-amber-500 to-orange-500 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-2xl animate-pulse">
+                <i class="fa-solid fa-trophy text-4xl text-slate-950"></i>
+            </div>
+
+            <h2 class="text-3xl font-black mb-2 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400">
+                전체 10단계 완전 정복!
+            </h2>
+            <p class="text-slate-400 text-sm mb-6">
+                빛바랜 세피아, 노을, 서리, 그리고 손전등 마스크의 혹독한 시련을 모두 극복하고 숲속 수수께끼의 종착지에 도달했습니다. 당신은 진정한 전설적인 탐색자입니다!
+            </p>
+
+            <div class="bg-slate-950/80 border border-slate-800 p-5 rounded-2xl mb-6 grid grid-cols-2 gap-4 text-center">
+                <div>
+                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">총 소요 시간</div>
+                    <div id="end-time-record" class="text-2xl font-black text-yellow-400">0.0초</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-sans">사용한 총 힌트</div>
+                    <div id="end-hint-record" class="text-2xl font-black text-sky-400">0 / 3</div>
+                </div>
+            </div>
+
+            <button id="clear-restart-btn" class="w-full py-4 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 font-black rounded-xl transition-all duration-300 shadow-lg text-lg hover:scale-[1.02] active:scale-[0.98]">
+                다시 처음부터 도전하기 <i class="fa-solid fa-rotate-right ml-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 커스텀 처음부터 다시하기 확인 모달 (alert/confirm 금지 대체물) -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
+        <div class="bg-slate-900 border border-slate-800 max-w-sm w-full rounded-2xl p-6 text-center shadow-2xl">
+            <div class="text-amber-500 text-4xl mb-3">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-100 mb-2">정말 처음부터 시작하시겠습니까?</h3>
+            <p class="text-xs text-slate-450 mb-5 leading-relaxed">
+                현재까지 진행한 스테이지와 점수, 힌트 사용 내역이 모두 초기화되고 처음 1단계부터 새 여정이 열립니다.
+            </p>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="confirm-cancel" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all">이전으로 돌어가기</button>
+                <button id="confirm-ok" class="py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all">완전히 리셋</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 푸터 -->
+    <footer class="w-full max-w-6xl text-center text-[10px] text-slate-600 mt-2 mb-2 mx-auto">
+        <p>© 2026 Mystery Timeout Project. Hand-drawn Vector HTML5 Engine.</p>
+    </footer>
+
+    <script>
+        // --- SOUND EFFECTS (Web Audio API 기반 100% 자체 소리 합성기) ---
+        const SoundManager = {
+            ctx: null,
+            muted: false,
+
+            init() {
+                try {
+                    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                } catch (e) {
+                    console.warn("Web Audio API not supported");
+                }
+            },
+
+            play(type) {
+                if (this.muted || !this.ctx) return;
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                const now = this.ctx.currentTime;
+
+                if (type === 'success') {
+                    // 정답: 산뜻하고 청아한 더블 아르페지오 (C5 -> E5 -> G5)
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); 
+                    osc.frequency.setValueAtTime(659.25, now + 0.08); 
+                    osc.frequency.setValueAtTime(783.99, now + 0.16); 
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'fail') {
+                    // 오답: 경고성 버저 하강 음 (Sawtooth)
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'stage-clear') {
+                    // 스테이지 클리어: 웅장한 장조 팡파레
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now); 
+                    osc.frequency.setValueAtTime(659.25, now + 0.1); 
+                    osc.frequency.setValueAtTime(783.99, now + 0.2); 
+                    osc.frequency.setValueAtTime(1046.50, now + 0.3); 
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
+                } else if (type === 'game-over') {
+                    // 게임 오버: 구슬픈 단조 멜로디 하강
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(392.00, now); 
+                    osc.frequency.setValueAtTime(349.23, now + 0.15); 
+                    osc.frequency.setValueAtTime(311.13, now + 0.3); 
+                    osc.frequency.setValueAtTime(246.94, now + 0.45); 
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+                    osc.start(now);
+                    osc.stop(now + 0.8);
+                }
+            }
+        };
+
+        // --- STREAMING_CHUNK: Designing vector rendering definitions for items... -->
+        // 숨은그림찾기에 표시할 캐릭터 및 사물 정의 (1000x600 고정 비율)
+        const ItemSpecs = {
+            // 1. 분홍 포션
+            potion: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.fillStyle = '#8B5A2B';
+                    ctx.fillRect(-size * 0.15, -size * 0.55, size * 0.3, size * 0.15);
+                    ctx.fillStyle = '#E0F2FE';
+                    ctx.fillRect(-size * 0.1, -size * 0.4, size * 0.2, size * 0.2);
+                    ctx.beginPath();
+                    ctx.arc(0, size * 0.1, size * 0.4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#38BDF8';
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(0, size * 0.1, size * 0.35, 0.1, Math.PI - 0.1);
+                    ctx.fillStyle = '#EC4899';
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 2. 황금 열쇠
+            key: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(-Math.PI / 4);
+                    ctx.strokeStyle = '#38bdf8'; // 귀여운 파란 열쇠 사양 적용
+                    ctx.lineWidth = size * 0.12;
+                    ctx.beginPath();
+                    ctx.arc(-size * 0.15, -size * 0.15, size * 0.15, 0, Math.PI * 2);
+                    ctx.arc(size * 0.15, -size * 0.15, size * 0.15, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.3, -size * 0.15);
+                    ctx.lineTo(0, size * 0.15);
+                    ctx.lineTo(size * 0.3, -size * 0.15);
+                    ctx.stroke();
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(-size * 0.04, size * 0.1, size * 0.08, size * 0.45);
+                    ctx.fillRect(size * 0.04, size * 0.35, size * 0.16, size * 0.08);
+                    ctx.restore();
+                }
+            },
+            // 3. 꼬마 유령
+            ghost: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.beginPath();
+                    ctx.arc(0, -size * 0.1, size * 0.38, Math.PI, 0, false);
+                    ctx.lineTo(size * 0.38, size * 0.35);
+                    ctx.quadraticCurveTo(size * 0.2, size * 0.25, size * 0.1, size * 0.35);
+                    ctx.quadraticCurveTo(0, size * 0.25, -size * 0.1, size * 0.35);
+                    ctx.quadraticCurveTo(-size * 0.2, size * 0.25, -size * 0.38, size * 0.35);
+                    ctx.closePath();
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fill();
+                    ctx.fillStyle = '#0f172a';
+                    ctx.beginPath();
+                    ctx.arc(-size * 0.12, -size * 0.1, size * 0.05, 0, Math.PI * 2);
+                    ctx.arc(size * 0.12, -size * 0.1, size * 0.05, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#FDA4AF';
+                    ctx.beginPath();
+                    ctx.arc(-size * 0.2, -size * 0.02, size * 0.05, 0, Math.PI * 2);
+                    ctx.arc(size * 0.2, -size * 0.02, size * 0.05, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 4. 귀여운 버섯
+            mushroom: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.15, size * 0.4);
+                    ctx.quadraticCurveTo(-size * 0.1, 0, -size * 0.1, -size * 0.1);
+                    ctx.lineTo(size * 0.1, -size * 0.1);
+                    ctx.quadraticCurveTo(size * 0.1, 0, size * 0.15, size * 0.4);
+                    ctx.closePath();
+                    ctx.fillStyle = '#FFF7ED';
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(0, -size * 0.1, size * 0.4, Math.PI, 0, false);
+                    ctx.closePath();
+                    ctx.fillStyle = '#EF4444';
+                    ctx.fill();
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(0, -size * 0.3, size * 0.07, 0, Math.PI * 2);
+                    ctx.arc(-size * 0.2, -size * 0.18, size * 0.06, 0, Math.PI * 2);
+                    ctx.arc(size * 0.2, -size * 0.18, size * 0.06, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 5. 마법 별책
+            book: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(0.1);
+                    ctx.fillStyle = '#6366F1';
+                    ctx.fillRect(-size * 0.38, -size * 0.32, size * 0.76, size * 0.64);
+                    ctx.fillStyle = '#FEF08A';
+                    ctx.fillRect(-size * 0.3, -size * 0.25, size * 0.64, size * 0.5);
+                    ctx.fillStyle = '#FBBF24';
+                    ctx.beginPath();
+                    for (let i = 0; i < 5; i++) {
+                        ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * size * 0.15,
+                                   Math.sin((18 + i * 72) * Math.PI / 180) * size * 0.15);
+                        ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * size * 0.06,
+                                   Math.sin((54 + i * 72) * Math.PI / 180) * size * 0.06);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 6. 마법봉
+            wand: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(-Math.PI / 3);
+                    ctx.fillStyle = '#8B5A2B';
+                    ctx.fillRect(-size * 0.04, -size * 0.3, size * 0.08, size * 0.7);
+                    ctx.translate(0, -size * 0.32);
+                    ctx.fillStyle = '#F59E0B';
+                    ctx.beginPath();
+                    for (let i = 0; i < 5; i++) {
+                        ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * size * 0.18,
+                                   Math.sin((18 + i * 72) * Math.PI / 180) * size * 0.18);
+                        ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * size * 0.07,
+                                   Math.sin((54 + i * 72) * Math.PI / 180) * size * 0.07);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 7. 파란 수정
+            crystal: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.fillStyle = '#22D3EE';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -size * 0.45);
+                    ctx.lineTo(size * 0.18, -size * 0.1);
+                    ctx.lineTo(size * 0.1, size * 0.3);
+                    ctx.lineTo(-size * 0.1, size * 0.3);
+                    ctx.lineTo(-size * 0.18, -size * 0.1);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 8. 골든 벨
+            bell: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.fillStyle = '#FCD34D';
+                    ctx.strokeStyle = '#FBBF24';
+                    ctx.lineWidth = size * 0.06;
+                    ctx.beginPath();
+                    ctx.arc(0, -size * 0.35, size * 0.1, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.15, -size * 0.25);
+                    ctx.quadraticCurveTo(-size * 0.15, -size * 0.25, size * 0.15, -size * 0.25);
+                    ctx.lineTo(size * 0.25, size * 0.15);
+                    ctx.quadraticCurveTo(0, size * 0.25, -size * 0.25, size * 0.15);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 9. 아기 무당벌레
+            ladybug: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = size * 0.06;
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.3, -size * 0.1); ctx.lineTo(size * 0.3, -size * 0.1);
+                    ctx.moveTo(-size * 0.3, size * 0.1);  ctx.lineTo(size * 0.3, size * 0.1);
+                    ctx.stroke();
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(0, -size * 0.25, size * 0.12, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#EF4444';
+                    ctx.beginPath();
+                    ctx.arc(0, size * 0.05, size * 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 10. 고깔 마법모자
+            hat: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.fillStyle = '#4338CA';
+                    ctx.beginPath();
+                    ctx.ellipse(0, size * 0.2, size * 0.42, size * 0.1, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.3, size * 0.15);
+                    ctx.quadraticCurveTo(0, -size * 0.1, size * 0.15, -size * 0.42);
+                    ctx.lineTo(size * 0.28, size * 0.15);
+                    ctx.closePath();
+                    ctx.fillStyle = '#4F46E5';
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 11. 황금 왕관 (추가 아이템)
+            crown: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.fillStyle = '#facc15';
+                    ctx.strokeStyle = '#eab308';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.4, size * 0.3);
+                    ctx.lineTo(-size * 0.45, -size * 0.1);
+                    ctx.lineTo(-size * 0.15, size * 0.1);
+                    ctx.lineTo(0, -size * 0.35);
+                    ctx.lineTo(size * 0.15, size * 0.1);
+                    ctx.lineTo(size * 0.45, -size * 0.1);
+                    ctx.lineTo(size * 0.4, size * 0.3);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = '#ef4444';
+                    ctx.beginPath(); ctx.arc(0, -size * 0.35, size * 0.06, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 12. 반짝이는 별 (추가 아이템)
+            star: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.fillStyle = '#fde047';
+                    ctx.beginPath();
+                    for (let i = 0; i < 5; i++) {
+                        ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * size * 0.4,
+                                   Math.sin((18 + i * 72) * Math.PI / 180) * size * 0.4);
+                        ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * size * 0.16,
+                                   Math.sin((54 + i * 72) * Math.PI / 180) * size * 0.16);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+            },
+            // 13. 네잎클로버 (추가 아이템)
+            clover: {
+                draw(ctx, x, y, size = 30) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.fillStyle = '#22c55e';
+                    for (let r = 0; r < 4; r++) {
+                        ctx.save();
+                        ctx.rotate(r * Math.PI / 2);
+                        ctx.beginPath();
+                        ctx.arc(0, -size * 0.18, size * 0.18, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                    ctx.strokeStyle = '#15803d';
+                    ctx.lineWidth = size * 0.08;
+                    ctx.beginPath();
+                    ctx.arc(size * 0.2, size * 0.2, size * 0.2, Math.PI, Math.PI * 1.5);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        };
+
+        // --- STREAMING_CHUNK: Initializing 10-stages detailed target database... -->
+        // 10단계 핵심 상태 데이터 셋업
+        const Game = {
+            currentStage: 1,
+            maxStage: 10,
+            timeLimits: {
+                1: 60, 2: 55, 3: 50, 4: 45, 5: 40,
+                6: 35, 7: 30, 8: 25, 9: 20, 10: 20
+            },
+            timeLeft: 60,
+            timerInterval: null,
+            hintsUsed: 0,
+            maxHints: 3,
+            isGameRunning: false,
+            totalElapsedTime: 0,
+            
+            // 손전등 좌표
+            mouseX: 500,
+            mouseY: 300,
+
+            // 스테이지 설명과 오버레이 테마 텍스트
+            stageInfo: {
+                1: { name: "마법 정원의 낮", desc: "낮 시간대의 밝고 아름다운 마법 정원입니다. 눈을 길들여 보세요!" },
+                2: { name: "세피아의 추억", desc: "빛바랜 갈색 필터가 작동하여 보호색 난이도가 증가합니다." },
+                3: { name: "한밤중의 전등", desc: "정원이 밤으로 덮입니다. 마우스 전등 주위 140px만 볼 수 있습니다!" },
+                4: { name: "붉은 노을 정원", desc: "오렌지빛 무거운 황혼이 숲속을 지배합니다. 붉은 보호색에 도전하세요." },
+                5: { name: "황혼의 보랏빛 안개", desc: "보라색 필터 속에서 손전등 범위가 130px로 살짝 좁아집니다." },
+                6: { name: "에메랄드 숲의 숨결", desc: "화면이 푸른 딥그린 계열로 침잠합니다. 클로버와 크리스탈의 혼돈!" },
+                7: { name: "차가운 겨울 서리", desc: "시안 블루의 차가운 냉기가 스크린을 감싸며 시인성을 격하시킵니다." },
+                8: { name: "심연의 그림자", desc: "밤이 깊어지며 손전등 시야가 100px로 축소됩니다. 미세하게 조준하세요!" },
+                9: { name: "황금빛 유적", desc: "오래된 고대 유적의 황색 빛 폭풍이 붑니다. 남은 시간은 단 20초!" },
+                10: { name: "최후의 요정 마스터", desc: "완전한 암흑과 최저 시야 75px 손전등! 요정 마스터 등극의 최종 관문!" }
+            },
+
+            // 10개 단계별 표적 오브젝트 (1000x600 비율)
+            targets: [
+                // STAGE 1
+                { id: 'potion', stage: 1, name: "분홍 포션", x: 150, y: 440, radius: 28, found: false, desc: "왼쪽 큰 나무 버섯 옆의 분홍 포션" },
+                { id: 'key', stage: 1, name: "파란 열쇠", x: 820, y: 160, radius: 28, found: false, desc: "우측 지붕 꼭대기 부근의 푸른 열쇠" },
+                { id: 'ghost', stage: 1, name: "꼬마 유령", x: 480, y: 110, radius: 28, found: false, desc: "중앙 뒤편 뭉게구름 우측 아래 수줍은 유령" },
+                { id: 'mushroom', stage: 1, name: "귀여운 버섯", x: 740, y: 490, radius: 28, found: false, desc: "우측 꽃밭 밑에 다정히 자리 잡은 버섯" },
+                { id: 'clover', stage: 1, name: "네잎클로버", x: 350, y: 390, radius: 28, found: false, desc: "왼쪽 목재 울타리 근처에 돋아난 클로버" },
+
+                // STAGE 2
+                { id: 'wand', stage: 2, name: "마법봉", x: 620, y: 360, radius: 28, found: false, desc: "상점 가판대 뒤에 세워진 노란 별 지팡이" },
+                { id: 'crystal', stage: 2, name: "파란 수정", x: 260, y: 510, radius: 28, found: false, desc: "왼쪽 정원 장식 풀 사이에 숨은 파란 보석" },
+                { id: 'bell', stage: 2, name: "골든 벨", x: 720, y: 220, radius: 28, found: false, desc: "우측 집 기둥에 조용히 매달린 황금 종" },
+                { id: 'ladybug', stage: 2, name: "아기 무당벌레", x: 910, y: 440, radius: 28, found: false, desc: "우측 수풀 위를 지나가려 기어가는 무당벌레" },
+                { id: 'hat', stage: 2, name: "마법모자", x: 510, y: 280, radius: 28, found: false, desc: "가운데 정원 이정표 위에 올려진 보라모자" },
+
+                // STAGE 3
+                { id: 'potion', stage: 3, name: "분홍 포션", x: 880, y: 520, radius: 28, found: false, desc: "우측 수풀 크리스탈 통 구석에 놓인 포션" },
+                { id: 'key', stage: 3, name: "파란 열쇠", x: 120, y: 180, radius: 28, found: false, desc: "왼쪽 큰 나뭇가지 상단에 걸린 푸른 열쇠" },
+                { id: 'ghost', stage: 3, name: "꼬마 유령", x: 600, y: 250, radius: 28, found: false, desc: "오른쪽 고슴도치 캐릭터 바로 옆 공중" },
+                { id: 'star', stage: 3, name: "반짝이는 별", x: 420, y: 310, radius: 28, found: false, desc: "가운데 작은 잎새 언덕 위 허공에 반짝이는 별" },
+
+                // STAGE 4
+                { id: 'crown', stage: 4, name: "황금 왕관", x: 500, y: 75, radius: 28, found: false, desc: "가운데 위 장식용 꽃장식 매듭에 걸린 왕관" },
+                { id: 'bell', stage: 4, name: "골든 벨", x: 180, y: 380, radius: 28, found: false, desc: "왼쪽 요정 집 안쪽 둥근 구멍 근처의 벨" },
+                { id: 'mushroom', stage: 4, name: "귀여운 버섯", x: 880, y: 220, radius: 28, found: false, desc: "우측 노란 지붕 위 화분에 얹혀진 머쉬룸" },
+                { id: 'book', stage: 4, name: "마법 별책", x: 900, y: 480, radius: 28, found: false, desc: "우측 가판대 기단 목조 아래 쓰러져 있는 보라책" },
+
+                // STAGE 5
+                { id: 'ghost', stage: 5, name: "꼬마 유령", x: 200, y: 450, radius: 28, found: false, desc: "왼쪽 장식용 울타리와 테이블 보라 식탁보 사이" },
+                { id: 'crystal', stage: 5, name: "파란 수정", x: 800, y: 390, radius: 28, found: false, desc: "오른쪽 상점 기단 틈새에 숨겨진 빛나는 젬" },
+                { id: 'hat', stage: 5, name: "마법모자", x: 380, y: 150, radius: 28, found: false, desc: "가운데 나무 구름 사이를 표류하는 고깔모자" },
+                { id: 'ladybug', stage: 5, name: "아기 무당벌레", x: 140, y: 280, radius: 28, found: false, desc: "왼쪽 요정 창고 지붕 밑 무늬 사이에 위장" },
+
+                // STAGE 6
+                { id: 'clover', stage: 6, name: "네잎클로버", x: 520, y: 420, radius: 28, found: false, desc: "가운데 돌길 틈새에 돋아난 클로버 무덤" },
+                { id: 'potion', stage: 6, name: "분홍 포션", x: 460, y: 210, radius: 28, found: false, desc: "중앙 수풀 표지판 뒷동네의 비밀 포션 병" },
+                { id: 'star', stage: 6, name: "반짝이는 별", x: 790, y: 310, radius: 28, found: false, desc: "우측 천막 지붕 별 장식 패턴 속에 숨어있는 별" },
+                { id: 'wand', stage: 6, name: "마법봉", x: 850, y: 530, radius: 28, found: false, desc: "우측 상점가 주방장 테이블 아래 쓰러진 별 지팡이" },
+
+                // STAGE 7
+                { id: 'book', stage: 7, name: "마법 별책", x: 130, y: 330, radius: 28, found: false, desc: "왼쪽 요정집 둥근 창문 기둥 사이에 기댄 보라책" },
+                { id: 'crown', stage: 7, name: "황금 왕관", x: 780, y: 140, radius: 28, found: false, desc: "우측 전등 기둥 머리 부분에 비스듬히 얹힌 왕관" },
+                { id: 'mushroom', stage: 7, name: "귀여운 버섯", x: 220, y: 190, radius: 28, found: false, desc: "왼쪽 조명 기둥 밑 숲속 바닥에 피어난 주홍 버섯" },
+                { id: 'crystal', stage: 7, name: "파란 수정", x: 500, y: 510, radius: 28, found: false, desc: "정원 돌바닥 요정 옆 작은 구멍에 숨은 수정" },
+
+                // STAGE 8
+                { id: 'key', stage: 8, name: "파란 열쇠", x: 480, y: 380, radius: 28, found: false, desc: "가운데 길목 작은 화분 자갈 사이에 놓인 하트 키" },
+                { id: 'hat', stage: 8, name: "마법모자", x: 890, y: 270, radius: 28, found: false, desc: "우측 상점 장식 깃발 레이어 뒤에 숨은 고깔모자" },
+                { id: 'ladybug', stage: 8, name: "아기 무당벌레", x: 310, y: 530, radius: 28, found: false, desc: "왼쪽 하단 장식용 바구니 외벽에 기어 다니는 벌레" },
+                { id: 'potion', stage: 8, name: "분홍 포션", x: 650, y: 170, radius: 28, found: false, desc: "중앙 언덕 위 전등 갓 걸개에 교묘히 숨은 포션" },
+
+                // STAGE 9
+                { id: 'star', stage: 9, name: "반짝이는 별", x: 120, y: 520, radius: 28, found: false, desc: "왼쪽 아래 크리스탈 뭉치 바로 위에 걸린 황금별" },
+                { id: 'wand', stage: 9, name: "마법봉", x: 520, y: 120, radius: 28, found: false, desc: "중앙 하늘가 연한 핑크 구름 끝부분에 걸린 지팡이" },
+                { id: 'crown', stage: 9, name: "황금 왕관", x: 860, y: 490, radius: 28, found: false, desc: "우측 구석 화려한 주홍 버섯 갓 위에 씌워진 미니 왕관" },
+                { id: 'bell', stage: 9, name: "골든 벨", x: 340, y: 210, radius: 28, found: false, desc: "왼쪽 가판대 차양막 아래 대들보에 조심히 얹혀진 벨" },
+
+                // STAGE 10
+                { id: 'ghost', stage: 10, name: "꼬마 유령", x: 500, y: 300, radius: 28, found: false, desc: "정원 정중앙 요정 뒤에서 나타난 귀여운 꼬마유령" },
+                { id: 'mushroom', stage: 10, name: "귀여운 버섯", x: 500, y: 100, radius: 28, found: false, desc: "정가운데 오렌지 해/달 상단에 위장된 버섯" },
+                { id: 'crystal', stage: 10, name: "파란 수정", x: 150, y: 150, radius: 28, found: false, desc: "왼쪽 전등 갓 지붕 기둥 사이에 숨겨진 푸른 크리스탈" },
+                { id: 'ladybug', stage: 10, name: "아기 무당벌레", x: 850, y: 480, radius: 28, found: false, desc: "오른쪽 부엉이 상인 날개 틈새에 매달려 있는 벌레" }
+            ]
+        };
+
+        // --- DOM 연결 ---
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const feedbackLayer = document.getElementById('feedback-layer');
+        const timerDisplay = document.getElementById('timer-display');
+        const timerBar = document.getElementById('timer-bar');
+        const scoreDisplay = document.getElementById('score-display');
+        const stageDisplay = document.getElementById('stage-display');
+        const stageTitle = document.getElementById('stage-title');
+        const itemList = document.getElementById('item-list');
+        const hintBtn = document.getElementById('hint-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const muteBtn = document.getElementById('mute-btn');
+        const canvasContainer = document.getElementById('game-canvas-container');
+
+        const startModal = document.getElementById('start-modal');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const nextStageModal = document.getElementById('next-stage-modal');
+        const nextModalTitle = document.getElementById('next-modal-title');
+        const nextModalDesc = document.getElementById('next-modal-desc');
+        const nextStageInfo = document.getElementById('next-stage-info');
+        const nextStageBtn = document.getElementById('next-stage-btn');
+        const failModal = document.getElementById('fail-modal');
+        const retryBtn = document.getElementById('retry-btn');
+        const endingModal = document.getElementById('ending-modal');
+        const endTimeRecord = document.getElementById('end-time-record');
+        const endHintRecord = document.getElementById('end-hint-record');
+        const clearRestartBtn = document.getElementById('clear-restart-btn');
+
+        // 커스텀 컨펌 모달 DOM
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmCancel = document.getElementById('confirm-cancel');
+        const confirmOk = document.getElementById('confirm-ok');
+
+        // --- STREAMING_CHUNK: Drawing fairy background visuals... -->
+        function drawBackground() {
+            // 1. 하늘 그라데이션 (단계별 변화)
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, 400);
+            if (Game.currentStage === 1) {
+                skyGrad.addColorStop(0, '#bae6fd');
+                skyGrad.addColorStop(1, '#fef08a');
+            } else if (Game.currentStage === 2) {
+                skyGrad.addColorStop(0, '#fed7aa');
+                skyGrad.addColorStop(1, '#fde047');
+            } else if (Game.currentStage === 3) {
+                skyGrad.addColorStop(0, '#1e1b4b');
+                skyGrad.addColorStop(1, '#0f172a');
+            } else if (Game.currentStage === 4) {
+                skyGrad.addColorStop(0, '#f97316');
+                skyGrad.addColorStop(1, '#ea580c');
+            } else if (Game.currentStage === 5) {
+                skyGrad.addColorStop(0, '#4c1d95');
+                skyGrad.addColorStop(1, '#2e1065');
+            } else if (Game.currentStage === 6) {
+                skyGrad.addColorStop(0, '#065f46');
+                skyGrad.addColorStop(1, '#022c22');
+            } else if (Game.currentStage === 7) {
+                skyGrad.addColorStop(0, '#155e75');
+                skyGrad.addColorStop(1, '#083344');
+            } else if (Game.currentStage === 8) {
+                skyGrad.addColorStop(0, '#020617');
+                skyGrad.addColorStop(1, '#000000');
+            } else if (Game.currentStage === 9) {
+                skyGrad.addColorStop(0, '#78350f');
+                skyGrad.addColorStop(1, '#451a03');
+            } else { // 10단계 극강 심연
+                skyGrad.addColorStop(0, '#030712');
+                skyGrad.addColorStop(1, '#000000');
+            }
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, 1000, 600);
+
+            // 2. 해/달 묘사
+            ctx.save();
+            const hasNightTheme = [3, 5, 8, 10].includes(Game.currentStage);
+            if (!hasNightTheme) {
+                ctx.fillStyle = '#f97316';
+                ctx.beginPath();
+                ctx.arc(500, 100, 45, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#facc15';
+                ctx.beginPath();
+                ctx.arc(500, 100, 38, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.fillStyle = '#e2e8f0';
+                ctx.beginPath();
+                ctx.arc(500, 100, 45, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#030712';
+                ctx.beginPath();
+                ctx.arc(485, 90, 42, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // 3. 구름 장식
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.beginPath();
+            ctx.arc(150, 130, 40, 0, Math.PI * 2);
+            ctx.arc(200, 110, 50, 0, Math.PI * 2);
+            ctx.arc(250, 130, 40, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(450, 120, 35, 0, Math.PI * 2);
+            ctx.arc(490, 100, 45, 0, Math.PI * 2);
+            ctx.arc(530, 120, 35, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.fill();
+
+            // 4. 왼쪽 아름다운 큰 나무 집
+            ctx.save();
+            ctx.fillStyle = '#78350f';
+            ctx.beginPath();
+            ctx.moveTo(0, 600);
+            ctx.lineTo(80, 250);
+            ctx.quadraticCurveTo(100, 220, 120, 180);
+            ctx.lineTo(240, 600);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#451a03';
+            ctx.beginPath();
+            ctx.arc(100, 380, 45, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#15803d';
+            ctx.beginPath();
+            ctx.arc(70, 150, 80, 0, Math.PI * 2);
+            ctx.arc(160, 100, 95, 0, Math.PI * 2);
+            ctx.arc(220, 160, 80, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // 5. 우측 아기자기한 요정 지붕집
+            ctx.save();
+            ctx.fillStyle = '#fed7aa';
+            ctx.fillRect(750, 300, 200, 300);
+            ctx.fillStyle = '#b45309';
+            ctx.beginPath();
+            ctx.arc(850, 600, 50, Math.PI, 0, false);
+            ctx.fill();
+            ctx.fillStyle = '#b91c1c';
+            ctx.beginPath();
+            ctx.moveTo(700, 300);
+            ctx.lineTo(850, 120);
+            ctx.lineTo(1000, 300);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            // 6. 아치 모양의 언덕 잔디 깔기
+            ctx.save();
+            ctx.fillStyle = '#16a34a';
+            ctx.beginPath();
+            ctx.moveTo(-10, 600);
+            ctx.quadraticCurveTo(300, 350, 1010, 600);
+            ctx.lineTo(1010, 600);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            // 7. 아기자기한 울타리
+            ctx.save();
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            for (let xPos = 280; xPos <= 420; xPos += 25) {
+                ctx.moveTo(xPos, 500);
+                ctx.lineTo(xPos, 440);
+            }
+            ctx.moveTo(270, 460);
+            ctx.lineTo(430, 460);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // --- STREAMING_CHUNK: Main canvas scene renderer with filters... -->
+        function renderScene() {
+            ctx.clearRect(0, 0, 1000, 600);
+
+            // 1. 고정 배경 그리기
+            drawBackground();
+
+            // 2. 현재 스테이지 대상 아이템들 그리기
+            const currentItems = Game.targets.filter(item => item.stage === Game.currentStage);
+            currentItems.forEach(item => {
+                if (!item.found) {
+                    if (ItemSpecs[item.id]) {
+                        ItemSpecs[item.id].draw(ctx, item.x, item.y, 60);
+                    }
+                } else {
+                    ctx.save();
+                    ctx.strokeStyle = '#4ade80';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.font = "bold 24px Noto Sans KR";
+                    ctx.fillStyle = "#4ade80";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("⭕", item.x, item.y);
+                    ctx.restore();
+                }
+            });
+
+            // 3. 환경 필터 오버레이 적용 (스테이지별 변화)
+            ctx.save();
+            if (Game.currentStage === 2) { // 세피아
+                ctx.fillStyle = 'rgba(168, 85, 24, 0.28)';
+                ctx.globalCompositeOperation = 'color';
+                ctx.fillRect(0, 0, 1000, 600);
+            } else if (Game.currentStage === 4) { // 노을
+                ctx.fillStyle = 'rgba(234, 88, 12, 0.24)';
+                ctx.globalCompositeOperation = 'multiply';
+                ctx.fillRect(0, 0, 1000, 600);
+            } else if (Game.currentStage === 6) { // 에메랄드 숲
+                ctx.fillStyle = 'rgba(6, 95, 70, 0.25)';
+                ctx.globalCompositeOperation = 'color-burn';
+                ctx.fillRect(0, 0, 1000, 600);
+            } else if (Game.currentStage === 7) { // 겨울 서리
+                ctx.fillStyle = 'rgba(6, 182, 212, 0.22)';
+                ctx.globalCompositeOperation = 'overlay';
+                ctx.fillRect(0, 0, 1000, 600);
+            } else if (Game.currentStage === 9) { // 황금빛 고대 유적
+                ctx.fillStyle = 'rgba(234, 179, 8, 0.28)';
+                ctx.globalCompositeOperation = 'hard-light';
+                ctx.fillRect(0, 0, 1000, 600);
+            }
+            ctx.restore();
+
+            // 4. 손전등 마스크 시스템 (3, 5, 8, 10단계에서 활성화)
+            const flashlightStages = [3, 5, 8, 10];
+            if (flashlightStages.includes(Game.currentStage)) {
+                ctx.save();
+                // 전체 깜깜하게 마스킹
+                ctx.fillStyle = 'rgba(5, 7, 18, 0.97)';
+                ctx.fillRect(0, 0, 1000, 600);
+
+                // 손전등 반경 설정 (스테이지에 따라 축소)
+                let radius = 140;
+                if (Game.currentStage === 5) radius = 130;
+                else if (Game.currentStage === 8) radius = 100;
+                else if (Game.currentStage === 10) radius = 75;
+
+                ctx.globalCompositeOperation = 'destination-out';
+                let grad = ctx.createRadialGradient(Game.mouseX, Game.mouseY, 10, Game.mouseX, Game.mouseY, radius);
+                grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
+                grad.addColorStop(0.6, 'rgba(0, 0, 0, 0.75)');
+                grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = grad;
+
+                ctx.beginPath();
+                ctx.arc(Game.mouseX, Game.mouseY, radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // 테두리 조명 링
+                ctx.save();
+                let lightBorder = ctx.createRadialGradient(Game.mouseX, Game.mouseY, radius - 10, Game.mouseX, Game.mouseY, radius + 1);
+                lightBorder.addColorStop(0, 'rgba(254, 240, 138, 0.12)');
+                lightBorder.addColorStop(1, 'rgba(254, 240, 138, 0)');
+                ctx.fillStyle = lightBorder;
+                ctx.beginPath();
+                ctx.arc(Game.mouseX, Game.mouseY, radius + 1, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // --- STREAMING_CHUNK: Direct click/touch input coordinates parsing... -->
+        function handleInteraction(clientX, clientY) {
+            if (!Game.isGameRunning) return;
+
+            const rect = canvas.getBoundingClientRect();
+            // 백분율 역추적 스케일링으로 정확하게 터치/마우스 매핑
+            const x = ((clientX - rect.left) / rect.width) * 1000;
+            const y = ((clientY - rect.top) / rect.height) * 600;
+
+            const activeItems = Game.targets.filter(item => item.stage === Game.currentStage && !item.found);
+            let hitMatch = null;
+
+            for (let item of activeItems) {
+                const dist = Math.sqrt((x - item.x) ** 2 + (y - item.y) ** 2);
+                // 판정 범위를 40px로 넉넉하게 확장하여 조작 스트레스 방지
+                if (dist <= (item.radius + 15)) {
+                    hitMatch = item;
+                    break;
+                }
+            }
+
+            if (hitMatch) {
+                hitMatch.found = true;
+                SoundManager.play('success');
+                createMarkerEffect(hitMatch.x, hitMatch.y, 'success');
+                
+                const totalStageTargets = Game.targets.filter(item => item.stage === Game.currentStage);
+                const foundStageTargets = totalStageTargets.filter(item => item.found);
+                
+                renderItemList();
+                updateDashboard();
+
+                if (foundStageTargets.length === totalStageTargets.length) {
+                    setTimeout(handleStageClear, 500);
+                }
+            } else {
+                // 오클릭 패널티
+                SoundManager.play('fail');
+                Game.timeLeft = Math.max(0, Game.timeLeft - 5);
+                updateDashboard();
+
+                canvasContainer.classList.add('shake-active');
+                setTimeout(() => canvasContainer.classList.remove('shake-active'), 300);
+
+                createMarkerEffect(x, y, 'fail');
+            }
+
+            renderScene();
+        }
+
+        // --- STREAMING_CHUNK: Generating visual indicator effects for hits/fails... -->
+        function createMarkerEffect(x, y, type) {
+            const marker = document.createElement('div');
+            const pctX = (x / 1000) * 100;
+            const pctY = (y / 600) * 100;
+
+            marker.className = "absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center transition-all duration-1000 z-40";
+            marker.style.left = `${pctX}%`;
+            marker.style.top = `${pctY}%`;
+
+            if (type === 'success') {
+                marker.innerHTML = `
+                    <div class="relative w-16 h-16 flex items-center justify-center">
+                        <span class="absolute w-full h-full border-4 border-emerald-400 rounded-full pulse-effect"></span>
+                        <span class="text-emerald-400 text-4xl font-extrabold drop-shadow">⭕</span>
+                    </div>
+                `;
+            } else {
+                marker.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <span class="text-rose-500 text-4xl font-extrabold drop-shadow animate-ping absolute">❌</span>
+                        <span class="text-rose-500 text-4xl font-extrabold drop-shadow">❌</span>
+                        <span class="bg-red-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full mt-2 shadow animate-bounce">-5초</span>
+                    </div>
+                `;
+                setTimeout(() => {
+                    marker.style.opacity = '0';
+                    setTimeout(() => marker.remove(), 1000);
+                }, 1000);
+            }
+
+            feedbackLayer.appendChild(marker);
+        }
+
+        // --- STREAMING_CHUNK: Dynamic sidebar and list layout updating... -->
+        function renderItemList() {
+            itemList.innerHTML = '';
+            const currentStageItems = Game.targets.filter(item => item.stage === Game.currentStage);
+
+            currentStageItems.forEach(item => {
+                const card = document.createElement('div');
+                card.id = `item-card-${item.id}`;
+                card.className = `flex items-center justify-between p-2.5 rounded-xl border transition-all duration-300 ${
+                    item.found 
+                        ? 'bg-emerald-950/20 border-emerald-500/30 opacity-60' 
+                        : 'bg-slate-950/50 border-slate-850 hover:border-slate-800'
+                }`;
+
+                const canvasId = `mini-${item.id}`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center overflow-hidden shadow-inner">
+                            <canvas id="${canvasId}" width="40" height="40" class="block"></canvas>
+                        </div>
+                        <div class="text-left">
+                            <h4 class="text-xs font-bold ${item.found ? 'text-emerald-400 line-through' : 'text-slate-200'}">${item.name}</h4>
+                            <p class="text-[9px] text-slate-500 leading-tight">${item.desc}</p>
+                        </div>
+                    </div>
+                    <div>
+                        ${
+                            item.found 
+                                ? '<span class="text-emerald-400 font-black"><i class="fa-solid fa-circle-check text-base"></i></span>' 
+                                : '<span class="text-slate-600 text-xs"><i class="fa-solid fa-hourglass-half animate-pulse"></i></span>'
+                        }
+                    </div>
+                `;
+                itemList.appendChild(card);
+
+                // 미니 벡터 아이콘 직접 그리기
+                setTimeout(() => {
+                    const miniCanvas = document.getElementById(canvasId);
+                    if (miniCanvas) {
+                        const mCtx = miniCanvas.getContext('2d');
+                        if (ItemSpecs[item.id]) {
+                            ItemSpecs[item.id].draw(mCtx, 20, 20, 36);
+                        }
+                    }
+                }, 50);
+            });
+        }
+
+        // --- STREAMING_CHUNK: Dashboard parameters update controller... -->
+        function updateDashboard() {
+            timerDisplay.textContent = `${Math.max(0, Game.timeLeft).toFixed(1)}초`;
+            
+            const maxTime = Game.timeLimits[Game.currentStage];
+            const pct = (Game.timeLeft / maxTime) * 100;
+            timerBar.style.width = `${pct}%`;
+
+            if (Game.timeLeft <= 10) {
+                timerDisplay.className = "text-base sm:text-lg font-black text-rose-500 animate-pulse";
+                timerBar.className = "absolute bottom-0 left-0 h-1 bg-rose-500 transition-all duration-100";
+            } else {
+                timerDisplay.className = "text-base sm:text-lg font-black text-emerald-400";
+                timerBar.className = "absolute bottom-0 left-0 h-1 bg-emerald-500 transition-all duration-100";
+            }
+
+            const currentStageItems = Game.targets.filter(item => item.stage === Game.currentStage);
+            const foundCount = currentStageItems.filter(item => item.found).length;
+            
+            scoreDisplay.textContent = `${foundCount} / ${currentStageItems.length}`;
+            stageDisplay.textContent = `${Game.currentStage} / ${Game.maxStage}`;
+
+            // 힌트 상태 관리
+            const hintTextSpan = hintBtn.querySelector('span');
+            hintTextSpan.textContent = `요정의 힌트 쓰기 (${Game.maxHints - Game.hintsUsed}회 가능)`;
+            if (Game.hintsUsed >= Game.maxHints) {
+                hintBtn.setAttribute('disabled', 'true');
+                hintBtn.className = "w-full py-3 bg-slate-950 text-slate-650 border border-slate-900 font-bold rounded-xl cursor-not-allowed opacity-50";
+            } else {
+                hintBtn.removeAttribute('disabled');
+                hintBtn.className = "w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-650 text-slate-950 font-black rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-lg";
+            }
+        }
+
+        // --- STREAMING_CHUNK: Crafting the intelligent hint system helper... -->
+        function triggerHint() {
+            if (Game.hintsUsed >= Game.maxHints || !Game.isGameRunning) return;
+
+            const activeItems = Game.targets.filter(item => item.stage === Game.currentStage && !item.found);
+            if (activeItems.length === 0) return;
+
+            const randomItem = activeItems[Math.floor(Math.random() * activeItems.length)];
+            Game.hintsUsed++;
+            updateDashboard();
+
+            const hintIndicator = document.createElement('div');
+            const pctX = (randomItem.x / 1000) * 100;
+            const pctY = (randomItem.y / 600) * 100;
+
+            hintIndicator.className = 'absolute -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none transition-all duration-500';
+            hintIndicator.style.left = `${pctX}%`;
+            hintIndicator.style.top = `${pctY}%`;
+            hintIndicator.innerHTML = `
+                <div class="relative w-20 h-20 flex items-center justify-center">
+                    <span class="absolute w-full h-full border-4 border-dashed border-amber-400 rounded-full animate-spin"></span>
+                    <span class="absolute w-14 h-14 bg-amber-400/20 rounded-full animate-ping"></span>
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-300 text-2xl drop-shadow"></i>
+                </div>
+            `;
+            feedbackLayer.appendChild(hintIndicator);
+
+            setTimeout(() => {
+                hintIndicator.style.opacity = '0';
+                setTimeout(() => hintIndicator.remove(), 500);
+            }, 3000);
+        }
+
+        // --- STREAMING_CHUNK: Managing stage flow and timer loops... -->
+        function startStage(stageNum) {
+            Game.currentStage = stageNum;
+            Game.timeLeft = Game.timeLimits[stageNum];
+            Game.isGameRunning = true;
+
+            // 해당 무대 타겟 미발견으로 셋업
+            Game.targets.forEach(item => {
+                if (item.stage === stageNum) item.found = false;
+            });
+
+            // 타이틀 & 테마 표시
+            const info = Game.stageInfo[stageNum];
+            stageTitle.textContent = `Stage ${stageNum}: ${info.name}`;
+            
+            // 시각적 스타일링 변경
+            if (stageNum <= 3) {
+                stageTitle.className = "text-xs text-amber-400 font-extrabold px-2 py-0.5 bg-amber-500/10 rounded";
+            } else if (stageNum <= 6) {
+                stageTitle.className = "text-xs text-orange-400 font-extrabold px-2 py-0.5 bg-orange-500/10 rounded";
+            } else {
+                stageTitle.className = "text-xs text-rose-400 font-extrabold px-2 py-0.5 bg-rose-500/10 rounded";
+            }
+
+            feedbackLayer.innerHTML = '';
+            renderItemList();
+            updateDashboard();
+            renderScene();
+
+            if (Game.timerInterval) clearInterval(Game.timerInterval);
+            Game.timerInterval = setInterval(tick, 100);
+        }
+
+        function tick() {
+            if (!Game.isGameRunning) return;
+
+            Game.timeLeft -= 0.1;
+            Game.totalElapsedTime += 0.1;
+
+            if (Game.timeLeft <= 0) {
+                Game.timeLeft = 0;
+                handleGameOver();
+            }
+
+            updateDashboard();
+        }
+
+        // --- STREAMING_CHUNK: Stage clear and ending handler mechanics... -->
+        function handleStageClear() {
+            Game.isGameRunning = false;
+            clearInterval(Game.timerInterval);
+
+            if (Game.currentStage < Game.maxStage) {
+                SoundManager.play('stage-clear');
+                nextModalTitle.textContent = `Stage ${Game.currentStage} 완전 돌파!`;
+                
+                const nextNum = Game.currentStage + 1;
+                const nextInfo = Game.stageInfo[nextNum];
+                
+                nextStageInfo.innerHTML = `
+                    <div class="flex items-start gap-2 text-yellow-400 font-bold mb-1">
+                        <i class="fa-solid fa-circle-exclamation mt-0.5 animate-bounce"></i>
+                        <span>[다음구역] ${nextInfo.name}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-450 leading-relaxed pl-5">
+                        ${nextInfo.desc}<br>
+                        <strong>(제한 시간: ${Game.timeLimits[nextNum]}초)</strong>
+                    </p>
+                `;
+                nextStageModal.classList.remove('hidden');
+            } else {
+                handleGameVictory();
+            }
+        }
+
+        function handleGameOver() {
+            Game.isGameRunning = false;
+            clearInterval(Game.timerInterval);
+            SoundManager.play('game-over');
+            failModal.classList.remove('hidden');
+        }
+
+        function handleGameVictory() {
+            SoundManager.play('stage-clear');
+            endTimeRecord.textContent = `${Game.totalElapsedTime.toFixed(1)}초`;
+            endHintRecord.textContent = `${Game.hintsUsed} / ${Game.maxHints}회`;
+            endingModal.classList.remove('hidden');
+        }
+
+        // --- STREAMING_CHUNK: Attaching custom modals and interactive events... -->
+        function setupEvents() {
+            // 시작
+            startGameBtn.addEventListener('click', () => {
+                SoundManager.init();
+                startModal.classList.add('hidden');
+                startStage(1);
+            });
+
+            // 마우스 및 터치
+            canvas.addEventListener('mousedown', (e) => {
+                handleInteraction(e.clientX, e.clientY);
+            });
+
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                handleInteraction(touch.clientX, touch.clientY);
+            }, { passive: false });
+
+            // 손전등 무브먼트 리스너
+            const updateFlashlightCoords = (clientX, clientY) => {
+                const rect = canvas.getBoundingClientRect();
+                Game.mouseX = ((clientX - rect.left) / rect.width) * 1000;
+                Game.mouseY = ((clientY - rect.top) / rect.height) * 600;
+                const flashlightStages = [3, 5, 8, 10];
+                if (flashlightStages.includes(Game.currentStage)) {
+                    renderScene();
+                }
+            };
+
+            canvas.addEventListener('mousemove', (e) => {
+                updateFlashlightCoords(e.clientX, e.clientY);
+            });
+
+            canvas.addEventListener('touchmove', (e) => {
+                const touch = e.touches[0];
+                updateFlashlightCoords(touch.clientX, touch.clientY);
+            });
+
+            // 힌트 작동
+            hintBtn.addEventListener('click', triggerHint);
+
+            // 다음 스테이지 진입
+            nextStageBtn.addEventListener('click', () => {
+                nextStageModal.classList.add('hidden');
+                startStage(Game.currentStage + 1);
+            });
+
+            // 재시도
+            retryBtn.addEventListener('click', () => {
+                failModal.classList.add('hidden');
+                startStage(Game.currentStage);
+            });
+
+            // --- STREAMING_CHUNK: Handling confirmation modals without raw alert... -->
+            // "처음부터" 버튼 클릭 시 커스텀 확인 모달 띄우기 (alert, confirm 원천 차단)
+            restartBtn.addEventListener('click', () => {
+                confirmModal.classList.remove('hidden');
+            });
+
+            confirmCancel.addEventListener('click', () => {
+                confirmModal.classList.add('hidden');
+            });
+
+            confirmOk.addEventListener('click', () => {
+                confirmModal.classList.add('hidden');
+                Game.hintsUsed = 0;
+                Game.totalElapsedTime = 0;
+                startStage(1);
+            });
+
+            clearRestartBtn.addEventListener('click', () => {
+                endingModal.classList.add('hidden');
+                Game.hintsUsed = 0;
+                Game.totalElapsedTime = 0;
+                startStage(1);
+            });
+
+            // 사운드 토글
+            muteBtn.addEventListener('click', () => {
+                SoundManager.muted = !SoundManager.muted;
+                if (SoundManager.muted) {
+                    muteBtn.innerHTML = `<i class="fa-solid fa-volume-xmark mr-1"></i> 사운드 꺼짐`;
+                    muteBtn.className = "py-2.5 bg-rose-950/40 hover:bg-rose-900 border border-rose-900/40 text-rose-350 text-xs font-bold rounded-lg transition-all";
+                } else {
+                    muteBtn.innerHTML = `<i class="fa-solid fa-volume-high mr-1"></i> 사운드 켜짐`;
+                    muteBtn.className = "py-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-slate-350 text-xs font-bold rounded-lg transition-all";
+                    SoundManager.play('success');
+                }
+            });
+        }
+
+        // 초기 시작 마운트
+        window.onload = () => {
+            setupEvents();
+            renderScene();
+        };
+    </script>
+</body>
+</html>
